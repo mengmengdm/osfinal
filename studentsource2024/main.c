@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
 		printf("Please provide the right arguments: first the port, then the max nb of clients");
 		return -1;
 	}
-	sbuffer_t **shared_buffer = malloc(8);
+	sbuffer_t **shared_buffer = malloc(sizeof(sbuffer_t *));
 	sbuffer_init(shared_buffer);
 
 	int MAX_CONN = atoi(argv[2]);
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]){
 		printf("Failed to create log process\n");
 		return -1;
 	}
-	write_to_log_process("test");
+	//write_to_log_process("test");
 	// Create the manager threads
 	pthread_t connmgr_thread, datamgr_thread, storagemgr_thread;
 	pthread_create(&connmgr_thread, NULL, (void*)start_server, serverArg);
@@ -73,11 +73,11 @@ int main(int argc, char *argv[]){
 	pthread_join(storagemgr_thread, NULL);
 	pthread_join(datamgr_thread, NULL);
 
-	sbuffer_free(shared_buffer);
+
 	free(serverArg);
 	free(dataArg);
 	free(storeArg);
-
+	sbuffer_free(shared_buffer);
 	end_log();
 	return 0;
 

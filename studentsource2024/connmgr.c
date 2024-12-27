@@ -25,22 +25,24 @@ void *client_handle(void* arg) {
     sbuffer_t *send_buffer = client_arg->buffer;
     sensor_data_t data;
     data.flag = THREAD_INSERTED;
-    int bytes, result, connected;
-    connected = 0;
+    int result;
+    int connected = 0;
     int connected_id = -1;
 
     printf("start 1 thread, current start thread: %d\n",start_thread);
     do {
         //sbuffer_init(&send_buffer);
         // read sensor ID
-        bytes = sizeof(data.id);
-        result = tcp_receive(client, (void *) &data.id, &bytes);
+        int bytes = sizeof(data.id);
+        tcp_receive(client, (void *) &data.id, &bytes);
+
         // read temperature
         bytes = sizeof(data.value);
-        result = tcp_receive(client, (void *) &data.value, &bytes);
+        tcp_receive(client, (void *) &data.value, &bytes);
+
         // read timestamp
         bytes = sizeof(data.ts);
-        result = tcp_receive(client, (void *) &data.ts, &bytes);
+        result=tcp_receive(client, (void *) &data.ts, &bytes);
 
         if ((result == TCP_NO_ERROR) && bytes) {
             printf("sensor id = %" PRIu16 " - temperature = %g - timestamp = %ld\n", data.id, data.value,
@@ -78,7 +80,7 @@ int start_server(void* passArg) {
     pthread_t client_tid[MAX_CONN];
     tcpsock_t *client;
 
-    int bytes, result;
+    //int bytes, result;
     printf("start listening on the port: %d, the max connection is: %d\n", PORT, MAX_CONN);
     printf("Test server is started\n");
     // TCP server

@@ -33,6 +33,7 @@ void *storemgr(void *arg) {
         printf("storemgr failed to fetch shared data");
     }
     FILE *file = open_db("data.csv");
+    write_to_log_process("A new data.csv file has been created.");
         while (1) {
             if (sbuffer_remove(buffer, &data) == SBUFFER_SUCCESS ) {
                 printf("find from store mgr: collecting data\n");
@@ -45,6 +46,7 @@ void *storemgr(void *arg) {
                 }
                 fprintf(file,"%d, %lf, %ld\n", data.id, data.value, data.ts);
                 fflush(file);
+                write_to_log_process("Data insertion from sensor %d succeeded",data.id);
             }
             else {
                 printf("failed to remove in store mgr\n");
@@ -55,27 +57,12 @@ void *storemgr(void *arg) {
     }
 
 
-int insert_sensor(FILE * f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts){
-    if (f == NULL){
-        return -1;
-    }
-    write_to_log_process("Data inserted.");
-
-    int result = fprintf(f, "%d, %.6f, %ld\n", id, value, ts);
-
-    if (result < 0) {
-        return result;
-    }
-
-    return 0;
-}
-
 int close_db(FILE * f){
     if (f == NULL){
         return -1;
     }
     printf("closing csv\n");
-    write_to_log_process("Data file closed.");
+    write_to_log_process("The data.csv file has been closed.");
     //end_log_process();
     return fclose(f);
 }

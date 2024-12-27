@@ -7,6 +7,7 @@
 #include "datamgr.h"
 
 #include <string.h>
+#include <unistd.h>
 
 #include "lib/dplist.h"
 
@@ -26,7 +27,9 @@ void init_sensor_list() {
     sensor_node[6].sensor_id = 132;
     sensor_node[7].sensor_id = 142;
     for (int i = 0; i < 8; i++) {
-        memset(sensor_node[i].averagedatalist, 0, sizeof(sensor_node[i].averagedatalist));
+        for (int j = 0; j < RUN_AVG_LENGTH; j++) {
+            sensor_node[i].averagedatalist[j] = 0;
+        }
         sensor_node[i].runing_avg = 0;
     }
 }
@@ -36,7 +39,7 @@ void calculate_allavg() {
         printf("DATAMGR: failed to initialize the sensor node\n");
     }
     for (int i = 0; i < 8; i++) {
-        sensor_value_t sum = 0;
+        sensor_value_t sum = 0.0;
         for (int j = 0; j < RUN_AVG_LENGTH; j++) {sum = sum +sensor_node[i].averagedatalist[j];}
         sensor_node[i].runing_avg = sum/RUN_AVG_LENGTH;
     }
@@ -46,6 +49,7 @@ void calculate1avg(sensor_element_t *element) {
     sensor_value_t sum = 0;
     for (int j = 0; j < RUN_AVG_LENGTH; j++) {sum = sum +element->averagedatalist[j];}
     element->runing_avg = sum/RUN_AVG_LENGTH;
+
     check1avg(element);
 }
 
@@ -62,9 +66,11 @@ void check_allavg() {
 void check1avg(sensor_element_t *element) {
     if (element->runing_avg != 0 && element->runing_avg > SET_MAX_TEMP) {
         printf("find sensor node %d over max_temp with avg %f\n",element->sensor_id,element->runing_avg);
+        write_to_log_process("Sensor node %d reports it’s too hot (avg temp = %f)",element->sensor_id,element->runing_avg);
     }
     else if (element->runing_avg != 0 && element->runing_avg < SET_MIN_TEMP) {
         printf("find sensor node %d less than min_temp with avg %f\n",element->sensor_id,element->runing_avg);
+        write_to_log_process("Sensor node %d reports it’s too cold (avg temp = %f)",element->sensor_id,element->runing_avg);
     }
 }
 int insert_data(sbuffer_t *buffer) {
@@ -75,8 +81,8 @@ int insert_data(sbuffer_t *buffer) {
         return -1;
     }
     while (1) {
-       if (buffer == NULL||buffer->head==NULL) {
-           continue;
+       if (buffer->head==NULL) {
+           return -1;
        }
 
        if (buffer->head->data.flag == THREAD_READYTOREAD &&buffer->head->data.id != 1) {
@@ -88,7 +94,7 @@ int insert_data(sbuffer_t *buffer) {
        }
        else continue;
 
-       sensor_id_t id = data.id;
+        sensor_id_t id = data.id;
         sensor_value_t value = data.value;
         printf("DATAMGR: reading the data from buffer %d, %f\n", id, value);
         //finding the corresponding sensor node
@@ -100,6 +106,7 @@ int insert_data(sbuffer_t *buffer) {
         }
         if (edit_element == NULL) {
             printf("DATAMGR: failed to find the corresponding sensor node\n");
+            if (id!=1){write_to_log_process("Received sensor data with invalid sensor node ID %d",id);}
             return -1;
         }
 
@@ -125,7 +132,7 @@ void *datamgr(void *arg) {
     printf("DATAMGR: starting thread: datamgr\n");
     dataArg_t *data_arg = (dataArg_t*)arg;
     sbuffer_t *buffer = data_arg->buffer;
-    sensor_data_t *data;
+    //sensor_data_t *data;
 
     init_sensor_list();
     int flag = 0;
