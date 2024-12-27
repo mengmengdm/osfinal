@@ -4,6 +4,7 @@
 
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
+#define LOG_FILE_NAME  "gateway.log"
 
 #include <stdint.h>
 #include <time.h>
@@ -22,6 +23,6 @@ typedef struct {
     int flag;
 } sensor_data_t;
 
-int write_to_log_process(char *msg);
+int write_to_log_process(const char *format, ...);
 
 #endif /* _CONFIG_H_ */

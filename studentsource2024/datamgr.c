@@ -6,150 +6,138 @@
 #include <assert.h>
 #include "datamgr.h"
 
+#include <string.h>
+
 #include "lib/dplist.h"
 
 void *element_copy(void *element);
 void element_free(void **element);
 int element_compare(void *x, void *y);
 
-#define RUN_AVG_LENGTH 5
+sensor_element_t sensor_node[8];
 
-typedef struct
-{
-    room_id_t room_id;
-    sensor_id_t sensor_id;
-    sensor_value_t last_five_data[RUN_AVG_LENGTH];
-    int size;
-    sensor_value_t runing_avg;
-    sensor_ts_t last_modified;
-} my_element_t;
-
-
-sensor_value_t insert_data(sensor_value_t arr[RUN_AVG_LENGTH], int size, sensor_value_t value) {
-    if (size < RUN_AVG_LENGTH) {
-        // insert into the array if it is not full
-        arr[size] = value;
-        (size)++;
-    } else {
-        // the array is full, delete the first element
-        for (int i = 1; i < RUN_AVG_LENGTH; i++) {
-            arr[i - 1] = arr[i];
-        }
-        arr[RUN_AVG_LENGTH - 1] = value;  // insert it to the end
+void init_sensor_list() {
+    sensor_node[0].sensor_id = 15;
+    sensor_node[1].sensor_id = 21;
+    sensor_node[2].sensor_id = 37;
+    sensor_node[3].sensor_id = 49;
+    sensor_node[4].sensor_id = 112;
+    sensor_node[5].sensor_id = 129;
+    sensor_node[6].sensor_id = 132;
+    sensor_node[7].sensor_id = 142;
+    for (int i = 0; i < 8; i++) {
+        memset(sensor_node[i].averagedatalist, 0, sizeof(sensor_node[i].averagedatalist));
+        sensor_node[i].runing_avg = 0;
     }
+}
 
+void calculate_allavg() {
+    if (sensor_node[0].sensor_id != 15) {
+        printf("DATAMGR: failed to initialize the sensor node\n");
+    }
+    for (int i = 0; i < 8; i++) {
+        sensor_value_t sum = 0;
+        for (int j = 0; j < RUN_AVG_LENGTH; j++) {sum = sum +sensor_node[i].averagedatalist[j];}
+        sensor_node[i].runing_avg = sum/RUN_AVG_LENGTH;
+    }
+}
+
+void calculate1avg(sensor_element_t *element) {
     sensor_value_t sum = 0;
-    for (int i = 0; i < size; i++) {
-        sum = sum + arr[i];
-    }
-    return sum/size;
+    for (int j = 0; j < RUN_AVG_LENGTH; j++) {sum = sum +element->averagedatalist[j];}
+    element->runing_avg = sum/RUN_AVG_LENGTH;
+    check1avg(element);
 }
 
-void *element_copy(void *element)
-{
-    my_element_t *copy = malloc(sizeof(my_element_t));
-    assert(copy != NULL);
-    copy->room_id = ((my_element_t *)element)->room_id;
-    copy->sensor_id = ((my_element_t *)element)->sensor_id;
-    copy->runing_avg = ((my_element_t *)element)->runing_avg;
-    copy->last_modified = ((my_element_t *)element)->last_modified;
-
-    for (int i = 0; i < 5; i++) {
-        copy->last_five_data[i] = ((my_element_t *)element)->last_five_data[i];
+void check_allavg() {
+    for (int i = 0; i < 8; i++) {
+        if (sensor_node[i].runing_avg != 0 && sensor_node[i].runing_avg > SET_MAX_TEMP) {
+            printf("find sensor node %d over max_temp with avg %f\n",sensor_node[i].sensor_id,sensor_node[i].runing_avg);
+        }
+        else if (sensor_node[i].runing_avg != 0 && sensor_node[i].runing_avg < SET_MIN_TEMP) {
+            printf("find sensor node %d less than min_temp with avg %f\n",sensor_node[i].sensor_id,sensor_node[i].runing_avg);
+        }
     }
-
-    return (void *)copy;
 }
-
-void element_free(void **element)
-{
-    free(*element);
-    *element = NULL;
+void check1avg(sensor_element_t *element) {
+    if (element->runing_avg != 0 && element->runing_avg > SET_MAX_TEMP) {
+        printf("find sensor node %d over max_temp with avg %f\n",element->sensor_id,element->runing_avg);
+    }
+    else if (element->runing_avg != 0 && element->runing_avg < SET_MIN_TEMP) {
+        printf("find sensor node %d less than min_temp with avg %f\n",element->sensor_id,element->runing_avg);
+    }
 }
-
-int element_compare(void *x, void *y)
-{
-    my_element_t *elem1 = (my_element_t *)x;
-    my_element_t *elem2 = (my_element_t *)y;
-    if (elem1->room_id == elem2->room_id && elem1->sensor_id == elem2->sensor_id && elem1->runing_avg == elem2->runing_avg && elem1->last_modified == elem2->last_modified) {
-        return 0;
+int insert_data(sbuffer_t *buffer) {
+    sensor_data_t data;
+    sensor_element_t *edit_element = NULL;
+    if (sensor_node[0].sensor_id != 15) {
+        printf("DATAMGR: failed to initialize the sensor node\n");
+        return -1;
     }
-    return -1;
-}
+    while (1) {
+       if (buffer == NULL||buffer->head==NULL) {
+           continue;
+       }
 
-void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
-    if (fp_sensor_map == NULL) {
-        perror("Error opening fp_sensor_map file");
-        return;
-    }
+       if (buffer->head->data.flag == THREAD_READYTOREAD &&buffer->head->data.id != 1) {
+           sbuffer_read(buffer, &data);
+       }
+       else if (buffer->head->data.id == 1) {
+           sbuffer_read(buffer, &data);
+           return -2;
+       }
+       else continue;
 
-    if (fp_sensor_data == NULL) {
-        perror("Error opening fp_sensor_data file");
-        return;
-    }
-
-    //create data_list to store all data
-    dplist_t *data_list = dpl_create(element_copy, element_free,element_compare);
-
-    room_id_t current_room_id = 0;
-    sensor_id_t current_sensor_id = 0;
-    while (fscanf(fp_sensor_map, "%d %d", &current_room_id, &current_sensor_id) == 2) {
-        my_element_t * current_element = (my_element_t *)malloc(sizeof(my_element_t));
-        current_element->room_id = current_room_id;
-        current_element->sensor_id = current_sensor_id;
-        current_element->size = 0;
-        dpl_insert_at_index(data_list,current_element, -1,false);
-        //printf("%d, %d\n", current_element->room_id,current_element->sensor_id);
-    }
-
-    sensor_id_t current_id_of_data = 0;
-    sensor_value_t current_data = 0;
-    time_t current_timestamp = 0;
-    int data_list_size = dpl_size(data_list);
-
-    while ( fread(&current_id_of_data, sizeof(sensor_id_t), 1, fp_sensor_data) == 1 &&
-            fread(&current_data, sizeof(sensor_value_t), 1, fp_sensor_data) == 1 &&
-            fread(&current_timestamp, sizeof(time_t), 1, fp_sensor_data) == 1) {
-        my_element_t *find_element;
-        for (int i = 0; i < data_list_size; i++) {
-            find_element = dpl_get_element_at_index(data_list, i);
-            if (current_id_of_data == find_element->sensor_id) {
+       sensor_id_t id = data.id;
+        sensor_value_t value = data.value;
+        printf("DATAMGR: reading the data from buffer %d, %f\n", id, value);
+        //finding the corresponding sensor node
+        for (int i = 0; i < 8; i++) {
+            if (sensor_node[i].sensor_id == id) {
+                edit_element = &sensor_node[i];
                 break;
             }
         }
-        if (find_element != NULL) {
-            if (find_element->size > 5) {
-                find_element->size = 5;
-            }
-            find_element->runing_avg = insert_data(find_element->last_five_data, find_element->size, current_data);
-            find_element->last_modified = current_timestamp;
-            find_element->size = (find_element->size) + 1;
-            printf("%u, %u, %f, %lld\n", find_element->room_id,find_element->sensor_id, find_element->runing_avg,find_element->last_modified);
+        if (edit_element == NULL) {
+            printf("DATAMGR: failed to find the corresponding sensor node\n");
+            return -1;
         }
 
+        //insert the value into the list to calculate average
+        for (int i = 0; i < RUN_AVG_LENGTH; i++) {
+            if (edit_element->averagedatalist[i] == 0) {
+                edit_element->averagedatalist[i] = value;
+                //calculate1avg(edit_element);
+                return 0;
+            }
+        }
+
+        for (int i = 0; i < RUN_AVG_LENGTH-1; i++) {
+            edit_element->averagedatalist[i] = edit_element->averagedatalist[i+1];
+        }
+        edit_element->averagedatalist[RUN_AVG_LENGTH-1] = value;
+        calculate1avg(edit_element);
+        return 0;
+    }
     }
 
+void *datamgr(void *arg) {
+    printf("DATAMGR: starting thread: datamgr\n");
+    dataArg_t *data_arg = (dataArg_t*)arg;
+    sbuffer_t *buffer = data_arg->buffer;
+    sensor_data_t *data;
 
-
+    init_sensor_list();
+    int flag = 0;
+    while (buffer!=NULL) {
+        flag =  insert_data(buffer);
+        if (flag == -2){
+            printf("datamgr thread end\n");
+            return 0;}
+    }
+    return 0;
 }
 
-void datamgr_free(){
 
-}
+void datamgr_free(){}
 
-uint16_t datamgr_get_room_id(sensor_id_t sensor_id){
-    int data_list_size = dpl_size(data_list);
-
-}
-
-sensor_value_t datamgr_get_avg(sensor_id_t sensor_id){
-
-}
-
-time_t datamgr_get_last_modified(sensor_id_t sensor_id){
-
-}
-
-int datamgr_get_total_sensors(){
-
-}

@@ -24,13 +24,14 @@ void *client_handle(void* arg) {
     tcpsock_t *client = client_arg->client;
     sbuffer_t *send_buffer = client_arg->buffer;
     sensor_data_t data;
-    data.flag = 0;
-    int bytes, result;
+    data.flag = THREAD_INSERTED;
+    int bytes, result, connected;
+    connected = 0;
+    int connected_id = -1;
 
     printf("start 1 thread, current start thread: %d\n",start_thread);
     do {
         //sbuffer_init(&send_buffer);
-
         // read sensor ID
         bytes = sizeof(data.id);
         result = tcp_receive(client, (void *) &data.id, &bytes);
@@ -46,11 +47,18 @@ void *client_handle(void* arg) {
                    (long int) data.ts);
             sbuffer_insert(send_buffer,&data);
         }
+        if (connected ==0) {
+            write_to_log_process("Sensor node %d has opened a new connection",data.id);
+            connected_id = data.id;
+            connected =1;
+        }
         printf("TCP status: %d\n", result);
     } while (result == TCP_NO_ERROR);
-
-    tcp_close(&client);
-    printf("client shut down\n");
+    if (write_to_log_process("Sensor node %d has closed the connection",connected_id)==0) {
+        tcp_close(&client);
+        printf("client shut down\n");
+        return 0;
+    }
     return 0;
 }
 
@@ -99,9 +107,12 @@ int start_server(void* passArg) {
     for (int i=0; i<MAX_CONN; i++) { // Wait for every thread to end
         pthread_join(client_tid[i], NULL);
     }
-    sensor_data_t *end_data = malloc(sizeof(sensor_data_t));
-    end_data->flag = 1;
-    sbuffer_insert(buffer,end_data);
+    sensor_data_t end_data;
+    end_data.flag = THREAD_END;
+    end_data.id = 1;
+    end_data.value = 0;
+    end_data.ts = 0;
+    sbuffer_insert(buffer,&end_data);
     //pthread_cond_signal(&condvar);
     if (tcp_close(&server) != TCP_NO_ERROR) exit(EXIT_FAILURE);
 

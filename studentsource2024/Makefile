@@ -67,4 +67,4 @@ zip:
 	zip lab_final.zip main.c connmgr.c connmgr.h datamgr.c datamgr.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h Makefile
 
 debug1:
-	gcc -o sensor_gateway main.c connmgr.c lib/tcpsock.c sbuffer.c sensor_db.c
+	gcc -g -o sensor_gateway main.c connmgr.c lib/tcpsock.c lib/dplist.c sbuffer.c sensor_db.c datamgr.c

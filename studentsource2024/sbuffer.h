@@ -11,6 +11,12 @@
 #define SBUFFER_SUCCESS 0
 #define SBUFFER_NO_DATA 1
 
+#define THREAD_INSERTED 0   // wait for reading
+#define THREAD_READYTOREAD 1    // wait for remove
+#define THREAD_READYTOREMOVE 2
+#define THREAD_END 3
+#define THREAD_REMOVE 4
+
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
  */
@@ -59,5 +65,7 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data);
  * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occured
 */
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
+
+int sbuffer_read(sbuffer_t *buffer, sensor_data_t *data);
 
 #endif  //_SBUFFER_H_

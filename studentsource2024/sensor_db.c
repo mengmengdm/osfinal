@@ -34,21 +34,24 @@ void *storemgr(void *arg) {
     }
     FILE *file = open_db("data.csv");
         while (1) {
-            if (sbuffer_remove(buffer, &data) == SBUFFER_SUCCESS && data.flag == 0) {
+            if (sbuffer_remove(buffer, &data) == SBUFFER_SUCCESS ) {
                 printf("find from store mgr: collecting data\n");
-                printf("writing in the csv:%d, %lf, %ld\n", data.id, data.value, data.ts);
+                printf("prewriting in the csv:%d, %lf, %ld\n", data.id, data.value, data.ts);
+                if (data.id == 1) {
+                    printf("finish collecting data in store mgr\n");
+                    close_db(file);
+                    printf("storemgr thread ended\n");
+                    return 0;
+                }
                 fprintf(file,"%d, %lf, %ld\n", data.id, data.value, data.ts);
-            }
-            else if (sbuffer_remove(buffer, &data) == SBUFFER_SUCCESS && data.flag == 1) {
-                printf("finish collecting data in store mgr\n");
-                close_db(file);
-                break;
+                fflush(file);
             }
             else {
                 printf("failed to remove in store mgr\n");
-                break;
+
             }
         }
+    return 0;
     }
 
 
