@@ -1,0 +1,3 @@
+Under my test, it can pass test3 and test5 at most of the time,
+sometimes it throws the segmentation fault while running, however, with a same compile file, the second time could work properly.
+Thanks for reading.

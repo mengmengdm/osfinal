@@ -160,7 +160,7 @@ int end_log() {
 	if (logger_pid > 0) {
 		close(log_pipe[1]);
 
-		wait(&logger_pid);
+		wait(NULL);
 		logger_pid = -1;
 	}
 	return 0;

@@ -48,9 +48,10 @@ void calculate_allavg() {
 void calculate1avg(sensor_element_t *element) {
     sensor_value_t sum = 0;
     for (int j = 0; j < RUN_AVG_LENGTH; j++) {sum = sum +element->averagedatalist[j];}
-    element->runing_avg = sum/RUN_AVG_LENGTH;
-
-    check1avg(element);
+    sensor_value_t avg= sum/RUN_AVG_LENGTH;
+    sensor_id_t id = element->sensor_id;
+    element->runing_avg = avg;
+    check1avgbyvalue(id, avg);
 }
 
 void check_allavg() {
@@ -63,15 +64,18 @@ void check_allavg() {
         }
     }
 }
+void check1avgbyvalue(int id, sensor_value_t avg) {
+     if (avg != 0 && avg > SET_MAX_TEMP) {
+        printf("find sensor node %d over max_temp with avg %f\n",id,avg);
+        write_to_log_process("Sensor node %d reports it’s too hot (avg temp = %f)",id,avg);
+    }
+    else if (avg != 0 && avg < SET_MIN_TEMP) {
+        printf("find sensor node %d less than min_temp with avg %f\n",id,avg);
+        write_to_log_process("Sensor node %d reports it’s too cold (avg temp = %f)",id,avg);
+    }
+}
 void check1avg(sensor_element_t *element) {
-    if (element->runing_avg != 0 && element->runing_avg > SET_MAX_TEMP) {
-        printf("find sensor node %d over max_temp with avg %f\n",element->sensor_id,element->runing_avg);
-        write_to_log_process("Sensor node %d reports it’s too hot (avg temp = %f)",element->sensor_id,element->runing_avg);
-    }
-    else if (element->runing_avg != 0 && element->runing_avg < SET_MIN_TEMP) {
-        printf("find sensor node %d less than min_temp with avg %f\n",element->sensor_id,element->runing_avg);
-        write_to_log_process("Sensor node %d reports it’s too cold (avg temp = %f)",element->sensor_id,element->runing_avg);
-    }
+
 }
 int insert_data(sbuffer_t *buffer) {
     sensor_data_t data;

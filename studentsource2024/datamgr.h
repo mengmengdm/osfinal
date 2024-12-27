@@ -95,6 +95,6 @@ void calculate_allavg();
 void calculate1avg(sensor_element_t *element);
 void check_allavg();
 void check1avg(sensor_element_t *element);
-
+void check1avgbyvalue(int id, sensor_value_t avg);
 
 #endif  //DATAMGR_H_
